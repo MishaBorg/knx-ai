@@ -30,13 +30,13 @@ def generate(data: RequestData):
     user_text = data.text
 
     prompt = f"""
-You are a KNX and ETS engineer.
+Analyze this KNX / ETS smart home scenario.
 
-Analyze the scenario and generate structured KNX logic.
+Generate KNX group addresses and logical device links.
 
 Return ONLY valid JSON.
 
-Format:
+Required JSON format:
 
 {{
   "group_addresses": [
@@ -60,7 +60,21 @@ Scenario:
 
     response = client.chat.completions.create(
         model="gpt-4.1-mini",
+        response_format={"type": "json_object"},
         messages=[
+            {
+                "role": "system",
+                "content": """
+You are an expert KNX and ETS engineer.
+
+You MUST return ONLY valid JSON.
+
+No markdown.
+No explanations.
+No comments.
+No extra text.
+"""
+            },
             {
                 "role": "user",
                 "content": prompt
@@ -72,22 +86,27 @@ Scenario:
 
     try:
         project = json.loads(content)
-    except:
+
+    except Exception as e:
+
         project = {
             "group_addresses": [],
             "links": [],
-            "error": content
+            "error": str(e),
+            "raw_response": content
         }
 
     with open("group_addresses.csv", "w", newline="") as f:
+
         writer = csv.writer(f)
 
         writer.writerow(["Name", "Address"])
 
         for addr in project.get("group_addresses", []):
+
             writer.writerow([
-                addr["name"],
-                addr["address"]
+                addr.get("name", ""),
+                addr.get("address", "")
             ])
 
     return {
